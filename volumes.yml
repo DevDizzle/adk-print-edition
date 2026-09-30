@@ -1,25 +1,46 @@
 # Book plan: 3 volumes, 8 steps. Each step = read these pages, then do the course.
 # Page paths are relative to src/adk-docs/docs/. Order here is the reading order.
+# The build leaves out a page when its support tag omits the edition language,
+# or when the page has code only in other languages.
 
 book:
   title: "Agent Development Kit"
-  subtitle: "Unofficial Print Edition — Python"
+  subtitle: "Unofficial Print Edition"
   source_url: "https://google.github.io/adk-docs/"
   repo_url: "https://github.com/google/adk-docs"
   project_url: "https://github.com/DevDizzle/adk-print-edition"
 
+# One edition per SDK language. "replace" swaps a page for the language's own
+# version of it. Kotlin is not an edition yet: the docs have too few Kotlin examples.
+editions:
+  python: {}
+  go:
+    replace:
+      get-started/python.md: get-started/go.md
+      a2a/quickstart-exposing.md: a2a/quickstart-exposing-go.md
+      a2a/quickstart-consuming.md: a2a/quickstart-consuming-go.md
+  typescript:
+    replace:
+      get-started/python.md: get-started/typescript.md
+  java:
+    replace:
+      get-started/python.md: get-started/java.md
+      a2a/quickstart-exposing.md: a2a/quickstart-exposing-java.md
+      a2a/quickstart-consuming.md: a2a/quickstart-consuming-java.md
+      live/get-started/streaming-python.md: live/get-started/streaming-java.md
+
 volumes:
   - number: 1
     title: "Build Agents and Tools"
-    file: "ADK-Print-Edition-Vol1-Build-Agents-and-Tools"
+    file: "Vol1-Build-Agents-and-Tools"
     steps: [1, 2, 3]
   - number: 2
     title: "Context, Workflows, and Components"
-    file: "ADK-Print-Edition-Vol2-Context-Workflows-Components"
+    file: "Vol2-Context-Workflows-Components"
     steps: [4, 5, 6]
   - number: 3
     title: "Run, Evaluate, and Deploy"
-    file: "ADK-Print-Edition-Vol3-Run-Evaluate-Deploy"
+    file: "Vol3-Run-Evaluate-Deploy"
     steps: [7, 8, 9]
 
 steps:
@@ -58,8 +79,10 @@ steps:
       - agents/models/index.md
       - agents/models/google-gemini.md
       - agents/models/anthropic.md
+      - agents/models/openai.md
       - agents/models/litellm.md
       - agents/models/agent-platform.md
+      - agents/models/routing.md
     do:
       - name: "Build Agents with Agent Development Kit (ADK)"
         where: "Google Skills"
@@ -123,6 +146,7 @@ steps:
       - agents/workflow-agents/loop-agents.md
       - agents/workflow-agents/parallel-agents.md
       - agents/custom-agents.md
+      - agents/routing.md
       - workflows/patterns.md
       - graphs/index.md
       - graphs/routes.md
@@ -163,6 +187,7 @@ steps:
       - runtime/event-loop.md
       - runtime/runconfig.md
       - runtime/resume.md
+      - runtime/cancel.md
       - runtime/ambient-agents.md
       - observability/index.md
       - observability/logging.md

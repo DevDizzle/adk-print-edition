@@ -141,7 +141,16 @@ ADM_RE = re.compile(
 )
 HEADING_RE = re.compile(r"^(#{1,6})[ \t]+(.*?)[ \t]*#*[ \t]*$")
 
-LANG_WORDS = {"python", "typescript", "javascript", "js", "ts", "go", "golang", "java", "kotlin", "maven", "gradle"}
+# Tab label (first word, lower case) -> SDK language. Maven and Gradle tabs
+# hold Java build files.
+LANG_MAP = {"python": "python", "typescript": "typescript", "javascript": "typescript", "js": "typescript",
+            "ts": "typescript", "go": "go", "golang": "go", "java": "java", "maven": "java", "gradle": "java",
+            "kotlin": "kotlin"}
+LANG_NAMES = {"python": "Python", "go": "Go", "typescript": "TypeScript", "java": "Java", "kotlin": "Kotlin"}
+# Code fence labels and snippet folders that show a page has code in a language.
+LANG_FENCES = {"python": ("python", "py"), "go": ("go", "golang"), "typescript": ("typescript", "ts", "javascript", "js"),
+               "java": ("java",), "kotlin": ("kotlin", "kt")}
+LANG = "python"   # the edition being built; set in main()
 LANG_ALIAS = {
     "py": "python", "python3": "python", "pycon": "python",
     "sh": "bash", "shell": "bash", "console": "bash", "zsh": "bash", "shell-session": "bash",
@@ -218,7 +227,7 @@ def video_url(src):
 
 def tab_lang(label):
     first = re.split(r"[\s\-(/]+", label.strip().lower())[0]
-    return first if first in LANG_WORDS else None
+    return LANG_MAP.get(first)
 
 
 def fence_attrs(info):
@@ -252,13 +261,14 @@ class Page:
         langs = [tab_lang(label) for label, _ in tabs]
         has_lang = any(langs)
         keep = [(label, body, lang) for (label, body), lang in zip(tabs, langs)
-                if lang is None or lang == "python"]
+                if lang is None or lang == LANG]
         STATS["tabs_dropped"] += len(tabs) - len(keep)
         pad = " " * ind
         out = [""]
-        if has_lang and not any(lang == "python" for _, _, lang in keep):
-            STATS["no_python_groups"] += 1
-            out += [pad + "[No Python version of this content. See the online docs for other languages.]{.nopython}", ""]
+        if has_lang and not any(lang == LANG for _, _, lang in keep):
+            STATS["no_lang_groups"] = STATS.get("no_lang_groups", 0) + 1
+            out += [pad + f"[No {LANG_NAMES[LANG]} version of this content. "
+                          "See the online docs for other languages.]{.nopython}", ""]
         label_each = len(keep) > 1 or (len(keep) == 1 and keep[0][2] is None)
         for label, body, lang in keep:
             body_t = self.transform(body)
@@ -492,14 +502,38 @@ def support_tag(m):
     spans = dict()
     for cls, txt in re.findall(r'<span class="lst-([\w-]+)"[^>]*>([^<]*)</span>', m["body"]):
         spans.setdefault(cls, []).append(txt.strip())
-    py = spans.get("python")
+    mine = spans.get(LANG)
     extra = ", ".join(spans.get("preview", []))
-    if py:
-        text = "Supported in ADK " + py[0] + (f" ({extra})" if extra else "")
+    if mine:
+        text = "Supported in ADK " + mine[0] + (f" ({extra})" if extra else "")
     else:
         others = [v[0] for k, v in spans.items() if k not in ("supported", "preview")]
-        text = "Not available in ADK Python" + (f" (only {', '.join(others)})" if others else "")
+        text = f"Not available in ADK {LANG_NAMES[LANG]}" + (f" (only {', '.join(others)})" if others else "")
     return f'\n{m["ind"]}[{text}]{{.adksupport}}\n'
+
+
+def page_skip_reason(path):
+    """Say why a page does not belong in this edition, or return None.
+    A page is left out when its top support tag omits the edition language,
+    or when it has code only in other languages."""
+    text = strip_frontmatter((DOCS / path).read_text(encoding="utf-8").replace("\r\n", "\n"))
+    head = "\n".join(text.split("\n")[:15])
+    m = SUPPORT_RE.search(head)
+    if m and f'class="lst-{LANG}"' not in m["body"]:
+        return "the page is not available in ADK " + LANG_NAMES[LANG]
+    counts = {}
+    for lang, fences in LANG_FENCES.items():
+        n = len(re.findall(r"^\s*```+\s*\{?\.?(?:%s)\b" % "|".join(fences), text, re.M))
+        n += sum(1 for t in re.findall(r'^\s*===[+!]*\s+"([^"]+)"', text, re.M) if tab_lang(t) == lang)
+        # A section such as "## Python" counts too, even when it has only prose.
+        if lang == LANG and lang in HEADING_LANG_RE:
+            n += sum(1 for h in re.findall(r"^#{2,6}\s+(.*)$", text, re.M) if re.search(HEADING_LANG_RE[lang], h))
+        counts[lang] = n
+    # One stray example in another language (for example a Kotlin quick start
+    # on an overview page) does not make the page foreign.
+    if counts[LANG] == 0 and sum(n for k, n in counts.items() if k != LANG) >= 2:
+        return "the page has code only in other languages"
+    return None
 
 
 def html_table_to_md(m):
@@ -550,7 +584,16 @@ def fix_headings(lines, slug, fallback_title):
     return lines, strip_md(first_text)
 
 
-OTHER_LANG_HEADING = re.compile(r"\b(TypeScript|JavaScript|Java|Kotlin|Go(?! [a-z]))\b")
+HEADING_LANG_RE = {
+    "python": r"\bPython\b", "typescript": r"\b(TypeScript|JavaScript)\b", "java": r"\bJava\b",
+    "kotlin": r"\bKotlin\b", "go": r"\bGo\b(?! [a-z])",   # "Go further" is English, not the language
+}
+
+
+def names_other_language(text):
+    mine = re.search(HEADING_LANG_RE[LANG], text)
+    other = any(re.search(rx, text) for k, rx in HEADING_LANG_RE.items() if k != LANG)
+    return other and not mine
 
 
 def drop_other_language_sections(lines, path):
@@ -569,8 +612,7 @@ def drop_other_language_sections(lines, path):
             level, text = len(m.group(1)), m.group(2)
             if drop_level is not None and level <= drop_level:
                 drop_level = None
-            if (drop_level is None and level >= 2 and OTHER_LANG_HEADING.search(text)
-                    and "Python" not in text):
+            if drop_level is None and level >= 2 and names_other_language(text):
                 drop_level = level
                 STATS["sections_dropped"] = STATS.get("sections_dropped", 0) + 1
                 warn(f"{path}: dropped section '{text}'")
@@ -593,15 +635,31 @@ class Book:
         self.plan = plan
         self.nav_titles = nav_titles
         self.pages = {}         # path -> dict(vol, chapter, slug, step)
+        self.step_pages = {}    # step number -> pages in this edition, in order
+        self.skipped = []       # (path, reason)
         self.images = {}
         n = 0
         steps = {s["number"]: s for s in plan["steps"]}
+        replace = (plan.get("editions", {}).get(LANG) or {}).get("replace", {})
         for vol in plan["volumes"]:
             for sn in vol["steps"]:
+                self.step_pages[sn] = []
                 for p in steps[sn]["pages"]:
+                    p = replace.get(p, p)
+                    reason = page_skip_reason(p)
+                    if reason:
+                        self.skipped.append((p, reason))
+                        continue
                     n += 1
+                    self.step_pages[sn].append(p)
                     self.pages[p] = dict(vol=vol["number"], chapter=n, step=sn,
                                          slug="pg-" + re.sub(r"[^a-z0-9]+", "-", p.lower()).strip("-"))
+        # A step with no pages and no course (an empty appendix) is left out.
+        self.active = [sn for vol in plan["volumes"] for sn in vol["steps"]
+                       if self.step_pages[sn] or steps[sn].get("do")]
+
+    def vol_steps(self, vol):
+        return [sn for sn in vol["steps"] if sn in self.active]
 
     def find_page(self, p):
         p = p.strip("/")
@@ -732,8 +790,6 @@ def process_page(book, path):
     lines = expand_snippets(text.split("\n"), path)
     text = "\n".join(lines)
     text = SUPPORT_RE.sub(support_tag, text)
-    if "Not available in ADK Python" in "\n".join(text.split("\n")[:12]):
-        warn(f"{path}: the whole page is not available in ADK Python; remove it from volumes.yml")
     text = TABLE_RE.sub(html_table_to_md, text)
     lines = page.transform(text.split("\n"))
     info = book.pages[path]
@@ -761,9 +817,11 @@ def url_tex(u):
 def step_opener(step, book):
     label = "Appendix" if step.get("appendix") else f"Step {step['number']}"
     rows = []
-    for p in step["pages"]:
+    for p in book.step_pages[step["number"]]:
         info = book.pages[p]
         rows.append(r"\stepchapter{%d}{%s}{%s}" % (info["chapter"], tex_escape(info["title"]), info["slug"]))
+    if not rows:
+        rows = [r"{\itshape The docs have no %s chapters for this step yet.}\par" % LANG_NAMES[LANG]]
     todo = "\n".join(r"\stepdo{%s}{%s}{%s}" % (tex_escape(d["name"]), tex_escape(d["where"] + ", " + d["time"]),
                                                 url_tex(d["url"]) if d["url"] else "")
                      for d in step.get("do", []))
@@ -800,10 +858,11 @@ def schedule_table(plan, book, vol_no):
     steps = {s["number"]: s for s in plan["steps"]}
     rows = []
     for vol in plan["volumes"]:
-        for sn in vol["steps"]:
+        for sn in book.vol_steps(vol):
             s = steps[sn]
-            chs = [book.pages[p]["chapter"] for p in s["pages"]]
-            read = f"Vol.~{vol['number']}, ch.~{chs[0]}--{chs[-1]}"
+            chs = [book.pages[p]["chapter"] for p in book.step_pages[sn]]
+            read = (f"Vol.~{vol['number']}, ch.~{chs[0]}--{chs[-1]}" if len(chs) > 1 else
+                    f"Vol.~{vol['number']}, ch.~{chs[0]}" if chs else f"Vol.~{vol['number']}, no chapters yet")
             do = r" \newline ".join(r"\textbullet~" + tex_escape(d["name"]) + r" \emph{(" + tex_escape(d["time"]) + ")}"
                                     for d in s.get("do", [])) or r"\emph{Optional reading}"
             name = "App." if s.get("appendix") else str(sn)
@@ -816,17 +875,20 @@ def schedule_table(plan, book, vol_no):
 
 def front_matter(plan, book, vol, commit, commit_date):
     b = plan["book"]
-    steps = vol["steps"]
+    steps = book.vol_steps(vol)
     by_no = {s["number"]: s for s in plan["steps"]}
     real = [s for s in steps if not by_no[s].get("appendix")]
     step_range = f"Steps {real[0]}--{real[-1]} of 8" + (" and an appendix" if len(real) < len(steps) else "")
+    lab_note = "" if LANG == "python" else (
+        f"The Google Skills labs and the codelab use Python. Do them in Python, or port the lab code "
+        f"to {LANG_NAMES[LANG]} as extra practice.\\par")
     return rf"""
 \begin{{titlepage}}
 \centering\sffamily
 \vspace*{{1.4in}}
 {{\Huge\bfseries {tex_escape(b['title'])}\par}}
 \vspace{{0.25in}}
-{{\Large {tex_escape(b['subtitle'])}\par}}
+{{\Large {tex_escape(b['subtitle'])} --- {LANG_NAMES[LANG]}\par}}
 \vspace{{1.1in}}
 {{\LARGE Volume {vol['number']}\par}}
 \vspace{{0.12in}}
@@ -847,8 +909,8 @@ This book is a print conversion of the Agent Development Kit (ADK) documentation
 The text and the code come from the {url_tex(b['repo_url'])} repository, commit {tex_escape(commit[:12])}
 ({commit_date}). Google publishes that content under the Apache License 2.0. The full license text is at the end of this volume.
 This edition is not a Google publication.\par\smallskip
-Changes from the source: the conversion keeps only the Python version of each code example. Pages for other languages,
-the API reference, the integrations catalog, and the community pages are not included. Read them online at {url_tex(b['source_url'])}.\par\smallskip
+Changes from the source: the conversion keeps only the {LANG_NAMES[LANG]} version of each code example.
+Pages and sections for other languages, the API reference, the integrations catalog, and the community pages are not included. Read them online at {url_tex(b['source_url'])}.\par\smallskip
 A cross-reference such as ``(p.~42)'' points to a page in this volume. A reference such as ``(Vol.~2, ch.~31)'' points to another volume.\par\smallskip
 Get the newest PDFs and the build scripts at {url_tex(b['project_url'])}.\par}}
 
@@ -863,7 +925,8 @@ Most courses are in the Google Skills learning path ``Develop Agents with Agent 
 {url_tex('https://www.skills.google/paths/3545')}. Step~8 uses the path ``Deploy Production Ready Agents'':
 {url_tex('https://www.skills.google/paths/3802')}.\par\medskip
 The courses can use older names than this manual. For example, a lab can say ``Vertex AI Agent Engine''
-where this manual says ``Agent Runtime''.\par\bigskip
+where this manual says ``Agent Runtime''.\par\medskip
+{lab_note}\bigskip
 {{\small
 \begin{{tabularx}}{{\linewidth}}{{@{{}}p{{0.35in}}p{{1.85in}}X >{{\centering\arraybackslash}}p{{0.42in}}@{{}}}}
 \toprule
@@ -878,13 +941,13 @@ where this manual says ``Agent Runtime''.\par\bigskip
 
 def volume_markdown(plan, book, vol, bodies):
     steps = {s["number"]: s for s in plan["steps"]}
-    first_ch = min(book.pages[p]["chapter"] for sn in vol["steps"] for p in steps[sn]["pages"])
+    first_ch = min(book.pages[p]["chapter"] for sn in book.vol_steps(vol) for p in book.step_pages[sn])
     parts = ["```{=latex}", r"\setcounter{chapter}{%d}" % (first_ch - 1), "```", ""]
     real_steps = [s["number"] for s in plan["steps"] if not s.get("appendix")]
-    for sn in vol["steps"]:
+    for sn in book.vol_steps(vol):
         s = steps[sn]
         parts.append(step_opener(s, book))
-        for p in s["pages"]:
+        for p in book.step_pages[sn]:
             parts.append(bodies[p])
             parts.append("")
         nxt = sn + 1 if sn + 1 in real_steps else None
@@ -902,15 +965,18 @@ def volume_markdown(plan, book, vol, bodies):
 # --------------------------------------------------------------------------
 # Main
 # --------------------------------------------------------------------------
-def write_release_notes(plan, built, commit, commit_date):
+def pdf_name(vol):
+    return f"ADK-Print-Edition-{LANG_NAMES[LANG]}-{vol['file']}.pdf"
+
+
+def write_release_notes(built):
+    """One section of the release notes for this edition. The release job
+    joins the sections of all editions."""
     rows = "\n".join(f"| {v['number']} | {v['title']} | {pages} | `{name}` |" for v, pages, name in built)
     total = sum(int(p) for _, p, _ in built if str(p).isdigit())
-    (DIST / "release-notes.md").write_text(
-        f"PDFs built from [google/adk-docs@{commit[:7]}]({plan['book']['repo_url']}/commit/{commit}) "
-        f"({commit_date}).\n\n| Vol. | Title | Pages | File |\n|---|---|---|---|\n{rows}\n\n"
-        f"Total: {total} pages. Letter size, for duplex printing.\n\n"
-        "Unofficial edition. Not affiliated with or endorsed by Google. "
-        "The ADK documentation is under the Apache License 2.0.\n", encoding="utf-8")
+    (DIST / f"release-notes-{LANG}.md").write_text(
+        f"### {LANG_NAMES[LANG]} edition\n\n| Vol. | Title | Pages | File |\n|---|---|---|---|\n{rows}\n\n"
+        f"Total: {total} pages.\n\n", encoding="utf-8")
 
 
 def run(cmd, cwd, what):
@@ -925,28 +991,23 @@ def run(cmd, cwd, what):
     return r
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--vol", type=int, action="append")
-    ap.add_argument("--tex-only", action="store_true")
-    ap.add_argument("--pull", action="store_true", help="git pull src/adk-docs before the build")
-    args = ap.parse_args()
-
-    OUT.mkdir(parents=True, exist_ok=True)
+def build_edition(lang, args, plan, commit, commit_date):
+    global LANG, OUT, IMG
+    LANG = lang
+    OUT = BUILD / "out" / lang
+    IMG = OUT / "img"
+    WARNINGS.clear()
+    STATS.clear()
+    STATS.update({"tabs_dropped": 0, "snippets": 0, "images": 0, "mermaid": 0})
     IMG.mkdir(parents=True, exist_ok=True)
-    DIST.mkdir(parents=True, exist_ok=True)
-    ensure_source(args.pull)
     shutil.copyfile(REPO / "LICENSE", OUT / "LICENSE-adk-docs.txt")
     (OUT / "puppeteer.json").write_text(
         json.dumps({"executablePath": find_chrome(), "args": ["--no-sandbox"]}), encoding="utf-8")
+    print(f"== {LANG_NAMES[lang]} edition")
 
-    langs = subprocess.run([PANDOC, "--list-highlight-languages"], capture_output=True, text=True).stdout.split()
-    KNOWN_LANGS.update(langs)
-
-    plan = yaml.safe_load((ROOT / "volumes.yml").read_text(encoding="utf-8"))
-    commit, commit_date = subprocess.run(["git", "log", "-1", "--format=%H %cs"], cwd=REPO,
-                                         capture_output=True, text=True).stdout.split()
     book = Book(plan, nav_title_map())
+    for p, reason in book.skipped:
+        print(f"   skip {p}: {reason}")
 
     # Pass 1: every page (titles are needed by all volumes for cross-references).
     bodies = {p: process_page(book, p) for p in book.pages}
@@ -963,8 +1024,10 @@ def main():
         md.write_text(volume_markdown(plan, book, vol, bodies), encoding="utf-8")
         (OUT / f"{stem}-front.tex").write_text(front_matter(plan, book, vol, commit, commit_date), encoding="utf-8")
         (OUT / f"{stem}-vars.tex").write_text(
-            "\\newcommand{\\voltitle}{Vol.~%d: %s}\n\\newcommand{\\buildstamp}{ADK Print Edition, Vol.~%d \\textperiodcentered{} docs %s (%s)}\n"
-            % (vol["number"], tex_escape(vol["title"]), vol["number"], commit[:7], commit_date), encoding="utf-8")
+            "\\newcommand{\\voltitle}{Vol.~%d: %s}\n"
+            "\\newcommand{\\buildstamp}{ADK Print Edition (%s), Vol.~%d \\textperiodcentered{} docs %s (%s)}\n"
+            % (vol["number"], tex_escape(vol["title"]), LANG_NAMES[lang], vol["number"], commit[:7], commit_date),
+            encoding="utf-8")
         exts = ("markdown+lists_without_preceding_blankline-blank_before_header-blank_before_blockquote"
                 "-tex_math_dollars-tex_math_single_backslash-tex_math_double_backslash-raw_tex-citations"
                 "-subscript-superscript-example_lists-yaml_metadata_block")
@@ -979,27 +1042,49 @@ def main():
                "-V", "colorlinks=true", "-V", "linkcolor=linkblue",
                "-V", "urlcolor=linkblue", "-V", "toccolor=black", "-V", "secnumdepth=1",
                "-V", "subparagraph=true"]
-        run(cmd, OUT, f"pandoc {stem}")
-        print(f"{stem}: wrote {stem}.tex")
+        run(cmd, OUT, f"pandoc {lang} {stem}")
+        print(f"   {stem}: wrote {stem}.tex")
         if args.tex_only:
             continue
         for n in range(3):
             r = run([XELATEX, "-interaction=nonstopmode", "-halt-on-error", f"{stem}.tex"], OUT,
-                    f"xelatex {stem} pass {n + 1}")
+                    f"xelatex {lang} {stem} pass {n + 1}")
         m = re.search(r"Output written on .*?\((\d+) pages", r.stdout)
         pages = m.group(1) if m else "?"
-        dst = DIST / f"{vol['file']}.pdf"
+        dst = DIST / pdf_name(vol)
         shutil.copyfile(OUT / f"{stem}.pdf", dst)
-        print(f"{stem}: {pages} pages -> {dst}")
+        print(f"   {stem}: {pages} pages -> {dst.name}")
         built.append((vol, pages, dst.name))
 
     if built and not args.tex_only:
-        write_release_notes(plan, built, commit, commit_date)
-    print("stats:", STATS)
-    if WARNINGS:
-        print(f"{len(WARNINGS)} warnings:")
-        for w in WARNINGS[:80]:
-            print("  -", w)
+        write_release_notes(built)
+    print("   stats:", STATS)
+    for w in WARNINGS[:80]:
+        print("   -", w)
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--lang", action="append", choices=["python", "go", "typescript", "java", "all"],
+                    help="edition to build (repeat for more; default python)")
+    ap.add_argument("--vol", type=int, action="append")
+    ap.add_argument("--tex-only", action="store_true")
+    ap.add_argument("--pull", action="store_true", help="git pull src/adk-docs before the build")
+    args = ap.parse_args()
+
+    DIST.mkdir(parents=True, exist_ok=True)
+    ensure_source(args.pull)
+    langs = subprocess.run([PANDOC, "--list-highlight-languages"], capture_output=True, text=True).stdout.split()
+    KNOWN_LANGS.update(langs)
+
+    plan = yaml.safe_load((ROOT / "volumes.yml").read_text(encoding="utf-8"))
+    commit, commit_date = subprocess.run(["git", "log", "-1", "--format=%H %cs"], cwd=REPO,
+                                         capture_output=True, text=True).stdout.split()
+    editions = list(plan["editions"])
+    wanted = args.lang or ["python"]
+    for lang in (editions if "all" in wanted else wanted):
+        build_edition(lang, args, plan, commit, commit_date)
+    (DIST / "docs-commit.txt").write_text(f"{commit} {commit_date}\n", encoding="utf-8")
 
 
 if __name__ == "__main__":

@@ -12,18 +12,18 @@ sys.stdout.reconfigure(encoding="utf-8")
 
 PATTERNS = {
     "fence": r"^\s*(:::|```|~~~)",
-    "tab": r'===\s+"',
+    "tab": r'^\s*===[+!]*\s+"[^"]*"\s*$',  # whole line, not the === operator
     "admonition": r"^\s*(!!!|\?\?\?)",
     "snippet": r"--8<--",
     "html": r"</?(div|span|img|table|details|summary|br|p)\b",
     "attr-list": r"\{\s*[:.#][\w-]",
     "icon": r":(material|octicons|fontawesome|simple)-",
-    "jinja": r"\{\{[%$]",
+    "jinja": r"\{\{%|\{\{\$(?!\{)",  # {{${x}}} is a JS template
     "md-link": r"\]\((http|\.\./|/|#)",
     "md-image": r"!\[",
 }
 
-for log in sorted(glob.glob("build/out/vol*.log")):
+for log in sorted(glob.glob("build/out/*/vol*.log")):
     text = open(log, encoding="utf-8", errors="replace").read()
     lost = re.findall(r"Missing character: There is no (.+?) in font ([^!]+)!", text)
     if lost:
@@ -55,5 +55,5 @@ for f in sorted(glob.glob("dist/*.pdf")):
                         spill.append(i + 1)
     if spill:
         print(f"  text below bottom margin: pages {sorted(set(spill))}")
-    nop = [i + 1 for i, pg in enumerate(d) if "Not available in ADK Python" in pg.get_text()]
-    print("  'Not available in ADK Python' on pages:", nop)
+    nop = [i + 1 for i, pg in enumerate(d) if "Not available in ADK" in pg.get_text()]
+    print("  'Not available in ADK' on pages:", nop)
