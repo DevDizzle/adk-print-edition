@@ -1,0 +1,13 @@
+{
+  "name": "adk-print-edition-tools",
+  "version": "1.0.0",
+  "description": "Diagram renderers for the ADK Print Edition build (mermaid-cli, SVG to PNG).",
+  "scripts": {},
+  "license": "Apache-2.0",
+  "type": "commonjs",
+  "dependencies": {
+    "@mermaid-js/mermaid-cli": "^12.0.0",
+    "puppeteer-core": "^25.12.0"
+  },
+  "private": true
+}

@@ -1,0 +1,119 @@
+name: Build PDFs
+
+# Rebuild the PDFs every week from the newest google/adk-docs commit, and
+# publish them as a GitHub release. A scheduled run does nothing when a
+# release for that docs commit already exists.
+on:
+  schedule:
+    - cron: "17 9 * * 1"   # Mondays, 09:17 UTC
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "build/**"
+      - "tools/**"
+      - "volumes.yml"
+      - "requirements.txt"
+      - ".github/workflows/build.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-pdfs
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    outputs:
+      sha: ${{ steps.docs.outputs.sha }}
+      date: ${{ steps.docs.outputs.date }}
+      tag: ${{ steps.docs.outputs.tag }}
+      exists: ${{ steps.gate.outputs.exists }}
+      skip: ${{ steps.gate.outputs.skip }}
+    steps:
+      - name: Find the newest docs commit
+        id: docs
+        run: |
+          sha=$(git ls-remote https://github.com/google/adk-docs.git HEAD | cut -c1-7)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+      - name: Look for a release of this commit
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.docs.outputs.sha }}
+        run: |
+          tag=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --json tagName --jq '.[].tagName' | grep -- "-$SHA$" | head -1 || true)
+          if [ -n "$tag" ]; then exists=true; else exists=false; fi
+          skip=false
+          if [ "$exists" = true ] && [ "$GITHUB_EVENT_NAME" = schedule ]; then skip=true; fi
+          echo "exists=$exists" >> "$GITHUB_OUTPUT"
+          echo "skip=$skip" >> "$GITHUB_OUTPUT"
+          echo "Docs commit $SHA. Release exists: $exists. Skip: $skip." >> "$GITHUB_STEP_SUMMARY"
+
+  build:
+    needs: check
+    if: needs.check.outputs.skip != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get the ADK docs
+        id: docs
+        run: |
+          git clone --depth 1 https://github.com/google/adk-docs.git src/adk-docs
+          sha=$(git -C src/adk-docs rev-parse --short=7 HEAD)
+          date=$(git -C src/adk-docs log -1 --format=%cs)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "date=$date" >> "$GITHUB_OUTPUT"
+          echo "tag=docs-$date-$sha" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tools/package-lock.json
+      - run: npm ci --prefix tools
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: "1"
+
+      - uses: r-lib/actions/setup-pandoc@v2
+        with:
+          pandoc-version: "3.12"
+      - uses: r-lib/actions/setup-tinytex@v2
+      - run: tlmgr install $(cat build/tex-packages.txt)
+
+      - name: Build the PDFs
+        run: python build/build.py
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+
+      - name: Check the PDFs
+        run: python build/qa.py | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pdfs-${{ steps.docs.outputs.tag }}
+          path: dist/*.pdf
+          retention-days: 14
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.docs.outputs.tag }}
+          TITLE: ADK docs of ${{ steps.docs.outputs.date }} (${{ steps.docs.outputs.sha }})
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/*.pdf --clobber
+            gh release edit "$TAG" --notes-file dist/release-notes.md
+          else
+            gh release create "$TAG" dist/*.pdf --title "$TITLE" --notes-file dist/release-notes.md --latest
+          fi

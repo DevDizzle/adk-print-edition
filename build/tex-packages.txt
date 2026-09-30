@@ -1,0 +1,1 @@
+tcolorbox pdfcol tikzfill environ trimspaces fvextra upquote lineno catchfile xstring framed titlesec fancyhdr needspace enumitem pgf etoolbox xcolor booktabs caption float adjustbox collectbox fontspec unicode-math lualatex-math xurl bookmark footnotehyperref microtype parskip geometry hyperref tabularx tools sourceserif sourcesans sourcecodepro

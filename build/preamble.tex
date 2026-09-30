@@ -1,0 +1,137 @@
+% ADK Print Edition: preamble added after pandoc's default LaTeX preamble.
+% Designed for a monochrome duplex laser printer: gray tints, no color cues.
+
+% ---- Fonts (TeX Live packages sourceserif, sourcesans, sourcecodepro) -----
+% Loaded by file name so that the build is the same on every OS.
+\setmainfont{SourceSerif4}[Extension=.otf, UprightFont=*-Regular, ItalicFont=*-RegularIt,
+  BoldFont=*-Semibold, BoldItalicFont=*-SemiboldIt]
+\setsansfont{SourceSans3}[Extension=.otf, UprightFont=*-Regular, ItalicFont=*-RegularIt,
+  BoldFont=*-Semibold, BoldItalicFont=*-SemiboldIt]
+\setmonofont{SourceCodePro}[Extension=.otf, UprightFont=*-Regular, ItalicFont=*-RegularIt,
+  BoldFont=*-Semibold, BoldItalicFont=*-SemiboldIt, Scale=0.86, WordSpace={1,0,0}]
+\tracinglostchars=1
+
+\usepackage{etoolbox}
+\usepackage{xcolor}
+\definecolor{linkblue}{RGB}{20,50,120}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage[most]{tcolorbox}
+\usepackage{fvextra}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{}
+\raggedbottom
+\widowpenalty=10000
+\clubpenalty=10000
+\setcounter{tocdepth}{0}
+
+% ---- Headings ------------------------------------------------------------
+\usepackage{titlesec}
+\titleformat{\chapter}[display]{\sffamily\bfseries}
+  {\normalsize\color{black!60}CHAPTER \thechapter}{3pt}{\huge}[\vspace{5pt}{\titlerule[0.8pt]}]
+\titlespacing*{\chapter}{0pt}{0pt}{20pt}
+\titleformat{\section}{\sffamily\bfseries\Large}{\thesection}{0.6em}{}
+\titlespacing*{\section}{0pt}{16pt}{6pt}
+\titleformat{\subsection}{\sffamily\bfseries\large}{}{0em}{}
+\titlespacing*{\subsection}{0pt}{13pt}{4pt}
+\titleformat{\subsubsection}{\sffamily\bfseries\normalsize}{}{0em}{}
+\titlespacing*{\subsubsection}{0pt}{11pt}{3pt}
+\titleformat{\paragraph}[hang]{\sffamily\bfseries\small}{}{0em}{}
+\titlespacing*{\paragraph}{0pt}{9pt}{3pt}
+\titleformat{\subparagraph}[hang]{\sffamily\itshape\small}{}{0em}{}
+\titlespacing*{\subparagraph}{0pt}{8pt}{2pt}
+
+% ---- Running heads -------------------------------------------------------
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[LE]{\sffamily\small\thepage\hspace{1.2em}\voltitle}
+\fancyhead[RO]{\sffamily\small\nouppercase{\leftmark}\hspace{1.2em}\thepage}
+\fancyfoot[C]{\sffamily\tiny\color{black!50}\buildstamp}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\chaptermark}[1]{\markboth{\thechapter.\ #1}{}}
+\fancypagestyle{plain}{\fancyhf{}\fancyfoot[C]{\sffamily\small\thepage}\renewcommand{\headrulewidth}{0pt}}
+
+% ---- Lists ---------------------------------------------------------------
+\usepackage{enumitem}
+\setlistdepth{9}
+\renewlist{itemize}{itemize}{9}
+\setlist[itemize]{label=\textbullet}
+\setlist[itemize,2]{label=--}
+\setlist[itemize,3]{label=$\circ$}
+\renewlist{enumerate}{enumerate}{9}
+\setlist[enumerate]{label=\arabic*.}
+\setlist[enumerate,2]{label=\alph*.}
+\setlist[enumerate,3]{label=\roman*.}
+
+% ---- Tables --------------------------------------------------------------
+\AtBeginEnvironment{longtable}{\small\setlength{\tabcolsep}{4pt}}
+
+% ---- Code ----------------------------------------------------------------
+\tcbset{codebox/.style={enhanced,breakable,colback=black!4,frame hidden,boxrule=0pt,arc=0pt,
+  left=5pt,right=5pt,top=3pt,bottom=3pt,before skip=6pt,after skip=8pt}}
+\ifdefined\Highlighting
+  \RecustomVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\},breaklines,breakanywhere,breaknonspaceingroup,fontsize=\footnotesize}
+\else
+  \DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\},breaklines,breakanywhere,breaknonspaceingroup,fontsize=\footnotesize}
+\fi
+\ifdefined\Shaded
+  \renewenvironment{Shaded}{\begin{tcolorbox}[codebox]}{\end{tcolorbox}}
+\else
+  \newenvironment{Shaded}{\begin{tcolorbox}[codebox]}{\end{tcolorbox}}
+\fi
+\DefineVerbatimEnvironment{plainverb}{Verbatim}{breaklines,breakanywhere,fontsize=\footnotesize}
+\newenvironment{plaincode}{\VerbatimEnvironment\begin{tcolorbox}[codebox]\begin{plainverb}}{\end{plainverb}\end{tcolorbox}}
+\newcommand{\codetitle}[1]{\par\smallskip\noindent{\sffamily\footnotesize\bfseries #1}\par\nopagebreak\vspace{-5pt}}
+
+% ---- Notes (admonitions) -------------------------------------------------
+% A tcolorbox inside a breakable tcolorbox cannot break across pages. Inside a
+% note, code blocks drop their own box (the note already has a gray fill).
+\newcommand{\flatcode}{%
+  \renewenvironment{Shaded}{\par\smallskip}{\par\smallskip}%
+  \renewenvironment{plaincode}{\VerbatimEnvironment\begin{plainverb}}{\end{plainverb}}}
+\newcommand{\admontitle}[1]{\flatcode\ifx&#1&\else{\sffamily\bfseries\small #1}\par\smallskip\fi}
+\newtcolorbox{admon}[1]{enhanced,breakable,colback=black!3,frame hidden,boxrule=0pt,arc=0pt,
+  borderline west={2.5pt}{0pt}{black!45},left=10pt,right=8pt,top=5pt,bottom=5pt,
+  before skip=10pt,after skip=10pt,before upper={\admontitle{#1}}}
+\newtcolorbox{admonstrong}[1]{enhanced,breakable,colback=black!6,frame hidden,boxrule=0pt,arc=0pt,
+  borderline west={4.5pt}{0pt}{black},left=10pt,right=8pt,top=5pt,bottom=5pt,
+  before skip=10pt,after skip=10pt,before upper={\admontitle{#1}}}
+\newenvironment{admonplain}[1]{\par\medskip\noindent\rule{\linewidth}{0.6pt}\par\admontitle{#1}}
+  {\par\noindent\rule{\linewidth}{0.6pt}\par\medskip}
+
+% ---- Small inline markers --------------------------------------------------
+\newcommand{\adksupport}[1]{{\sffamily\footnotesize\color{black!65}#1}}
+\newcommand{\tablabel}[1]{{\sffamily\small\bfseries #1}}
+\newcommand{\nopython}[1]{{\sffamily\small\itshape\color{black!70}#1}}
+\newcommand{\xpage}[1]{~(p.\,\pageref{#1})}
+\newcommand{\figcap}[1]{{\small\itshape #1\par}}
+\newcommand{\checkbox}{\raisebox{-0.15em}{\framebox[0.95em]{\rule{0pt}{0.65em}}}}
+
+% ---- Step opener and checkpoint pages --------------------------------------
+\newcommand{\stepopener}[2]{%
+  \cleardoublepage\thispagestyle{empty}%
+  \phantomsection\addcontentsline{toc}{part}{#1: #2}%
+  \markboth{#1: #2}{}%
+  \vspace*{0.7in}%
+  {\sffamily\Large\color{black!60}\MakeUppercase{#1}\par}\vspace{4pt}%
+  {\sffamily\bfseries\Huge #2\par}\vspace{8pt}%
+  \hrule height 1.2pt\vspace{0.35in}}
+\newcommand{\stepchapter}[3]{\noindent\makebox[2.2em][r]{#1}\hspace{0.9em}#2\dotfill\pageref{#3}\par\smallskip}
+\newcommand{\stepdo}[3]{\noindent\checkbox\hspace{0.7em}\begin{minipage}[t]{0.88\linewidth}\textbf{#1}\\
+  {\small #2}\ifx&#3&\else\\{\small #3}\fi\end{minipage}\par\medskip}
+\newcommand{\checkitem}[3]{\stepdo{#1}{#2}{#3}}
+\newtcolorbox{cpbox}{enhanced,colback=white,colframe=black,boxrule=1.2pt,arc=0pt,
+  left=12pt,right=12pt,top=10pt,bottom=10pt}
+\newcommand{\notelines}{\par\nointerlineskip
+  \leaders\vbox to 0.34in{\vfil\hrule width \linewidth height 0.3pt}\vfill\clearpage}
+\newenvironment{checkpoint}[3]{%
+  \clearpage\thispagestyle{plain}%
+  \begin{cpbox}
+  {\sffamily\bfseries\Large Checkpoint: Step #1 complete\par}\smallskip
+  {\sffamily\small #2\par}\medskip
+  You finished the reading for Step #1. #3\par\medskip
+  {\sffamily\bfseries Do now}\par\medskip}
+ {\par\medskip Date done: \rule{2.2in}{0.4pt}\par
+  \end{cpbox}
+  \vspace{0.25in}{\sffamily\bfseries Notes}\par\medskip
+  \notelines}

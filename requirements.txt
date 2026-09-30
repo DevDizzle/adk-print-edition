@@ -1,0 +1,3 @@
+pyyaml>=6
+pillow>=11
+pymupdf>=1.26

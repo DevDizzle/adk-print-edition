@@ -1,0 +1,225 @@
+# Book plan: 3 volumes, 8 steps. Each step = read these pages, then do the course.
+# Page paths are relative to src/adk-docs/docs/. Order here is the reading order.
+
+book:
+  title: "Agent Development Kit"
+  subtitle: "Unofficial Print Edition — Python"
+  source_url: "https://google.github.io/adk-docs/"
+  repo_url: "https://github.com/google/adk-docs"
+  project_url: "https://github.com/DevDizzle/adk-print-edition"
+
+volumes:
+  - number: 1
+    title: "Build Agents and Tools"
+    file: "ADK-Print-Edition-Vol1-Build-Agents-and-Tools"
+    steps: [1, 2, 3]
+  - number: 2
+    title: "Context, Workflows, and Components"
+    file: "ADK-Print-Edition-Vol2-Context-Workflows-Components"
+    steps: [4, 5, 6]
+  - number: 3
+    title: "Run, Evaluate, and Deploy"
+    file: "ADK-Print-Edition-Vol3-Run-Evaluate-Deploy"
+    steps: [7, 8, 9]
+
+steps:
+  - number: 1
+    title: "Get Started"
+    pages:
+      - get-started/index.md
+      - get-started/about.md
+      - 2.0/index.md
+      - get-started/installation.md
+      - get-started/python.md
+      - get-started/google-cloud.md
+      - get-started/agents-cli.md
+      - get-started/migrate.md
+    do:
+      - name: "Welcome: Develop Agents with Agent Development Kit (ADK)"
+        where: "Google Skills"
+        time: "short intro"
+        url: "https://www.skills.google/paths/3545/course_templates/1778"
+      - name: "Build Your First Agent with Agent Development Kit (ADK)"
+        where: "Google Skills"
+        time: "1 h 15 min"
+        url: "https://www.skills.google/paths/3545/course_templates/1563"
+
+  - number: 2
+    title: "Agents and Models"
+    pages:
+      - tutorials/index.md
+      - tutorials/multi-tool-agent.md
+      - tutorials/agent-team.md
+      - tutorials/coding-with-ai.md
+      - agents/index.md
+      - agents/llm-agents.md
+      - agents/config.md
+      - agents/managed-agents.md
+      - agents/models/index.md
+      - agents/models/google-gemini.md
+      - agents/models/anthropic.md
+      - agents/models/litellm.md
+      - agents/models/agent-platform.md
+    do:
+      - name: "Build Agents with Agent Development Kit (ADK)"
+        where: "Google Skills"
+        time: "30 min"
+        url: "https://www.skills.google/paths/3545/course_templates/1585"
+
+  - number: 3
+    title: "Tools"
+    pages:
+      - tools-custom/index.md
+      - tools-custom/function-tools.md
+      - tools-custom/performance.md
+      - tools-custom/confirmation.md
+      - tools-custom/mcp-tools/index.md
+      - tools-custom/mcp-tools/advanced.md
+      - tools-custom/mcp-tools/deployment.md
+      - tools-custom/mcp-tools/agent-as-server.md
+      - tools-custom/mcp-tools/agent-managed.md
+      - tools-custom/openapi-tools.md
+      - tools-custom/authentication.md
+      - tools/limitations.md
+      - grounding/index.md
+      - grounding/google_search_grounding.md
+      - grounding/grounding_with_search.md
+    do:
+      - name: "ADK Crash Course - From Beginner To Expert: Sessions 1-3 (Runner, Custom Tools, Agent-as-a-Tool)"
+        where: "Google Codelabs"
+        time: "about 1 h"
+        url: "https://codelabs.developers.google.com/onramp/instructions"
+
+  - number: 4
+    title: "Context, Sessions, State, and Memory"
+    pages:
+      - context/index.md
+      - sessions/index.md
+      - sessions/session/index.md
+      - sessions/session/rewind.md
+      - sessions/session/migrate.md
+      - sessions/state.md
+      - events/index.md
+      - sessions/memory.md
+      - context/compaction.md
+      - context/caching.md
+    do:
+      - name: "Manage Agent Memory and State"
+        where: "Google Skills"
+        time: "45 min"
+        url: "https://www.skills.google/paths/3545/course_templates/1584"
+      - name: "ADK Crash Course: Session 4 (Agent Memory)"
+        where: "Google Codelabs"
+        time: "about 20 min"
+        url: "https://codelabs.developers.google.com/onramp/instructions"
+
+  - number: 5
+    title: "Multi-Agent and Graph Workflows"
+    pages:
+      - workflows/index.md
+      - workflows/collaboration.md
+      - agents/workflow-agents/index.md
+      - agents/workflow-agents/sequential-agents.md
+      - agents/workflow-agents/loop-agents.md
+      - agents/workflow-agents/parallel-agents.md
+      - agents/custom-agents.md
+      - workflows/patterns.md
+      - graphs/index.md
+      - graphs/routes.md
+      - graphs/data-handling.md
+      - graphs/human-input.md
+      - graphs/dynamic.md
+    do:
+      - name: "ADK Crash Course: Sessions 5-8 (Router, SequentialAgent, LoopAgent, ParallelAgent)"
+        where: "Google Codelabs"
+        time: "about 1 h"
+        url: "https://codelabs.developers.google.com/onramp/instructions"
+
+  - number: 6
+    title: "Callbacks, Plugins, Artifacts, and Safety"
+    pages:
+      - apps/index.md
+      - callbacks/index.md
+      - callbacks/types-of-callbacks.md
+      - callbacks/design-patterns-and-best-practices.md
+      - plugins/index.md
+      - artifacts/index.md
+      - skills/index.md
+      - safety/index.md
+    do:
+      - name: "Engineer AI Agents with Agent Development Kit (ADK) — skill badge"
+        where: "Google Skills"
+        time: "1 h 45 min"
+        url: "https://www.skills.google/paths/3545/course_templates/1596"
+
+  - number: 7
+    title: "Runtime, Observability, and Evaluation"
+    pages:
+      - runtime/index.md
+      - runtime/web-interface/index.md
+      - visual-builder/index.md
+      - runtime/command-line.md
+      - runtime/api-server.md
+      - runtime/event-loop.md
+      - runtime/runconfig.md
+      - runtime/resume.md
+      - runtime/ambient-agents.md
+      - observability/index.md
+      - observability/logging.md
+      - observability/metrics.md
+      - observability/traces.md
+      - evaluate/index.md
+      - evaluate/criteria.md
+      - evaluate/user-sim.md
+      - evaluate/environment_simulation.md
+      - evaluate/custom_metrics.md
+      - optimize/index.md
+    do:
+      - name: "Hands-on (no course): write an eval set for your Step 6 agent and run it with adk eval"
+        where: "Your own machine"
+        time: "about 1 h"
+        url: ""
+
+  - number: 8
+    title: "Deployment and A2A"
+    pages:
+      - deploy/index.md
+      - deploy/agent-runtime/index.md
+      - deploy/agent-runtime/deploy.md
+      - deploy/agent-runtime/agents-cli.md
+      - deploy/agent-runtime/test.md
+      - deploy/cloud-run.md
+      - deploy/gke.md
+      - a2a/index.md
+      - a2a/intro.md
+      - a2a/quickstart-exposing.md
+      - a2a/quickstart-consuming.md
+      - a2a/a2a-extension.md
+    do:
+      - name: "Deploy Production Ready Agents (learning path, ends with the \"Deploy an Agent with ADK\" challenge lab and skill badge)"
+        where: "Google Skills"
+        time: "5 activities"
+        url: "https://www.skills.google/paths/3802"
+      - name: "Wrap Up: Develop Agents with ADK"
+        where: "Google Skills"
+        time: "10 min"
+        url: "https://www.skills.google/paths/3545/course_templates/1771"
+
+  - number: 9
+    title: "Appendix: Live and Voice Agents"
+    appendix: true
+    pages:
+      - live/index.md
+      - live/get-started/index.md
+      - live/get-started/streaming-python.md
+      - live/workflows.md
+      - live/tools.md
+      - live/sessions.md
+      - live/events.md
+      - live/audio-video.md
+      - live/configuration.md
+      - live/guardrails.md
+      - live/evaluation.md
+      - live/custom-server.md
+      - live/models.md
+    do: []
