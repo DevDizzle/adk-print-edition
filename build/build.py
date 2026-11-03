@@ -641,6 +641,12 @@ class Book:
         n = 0
         steps = {s["number"]: s for s in plan["steps"]}
         replace = (plan.get("editions", {}).get(LANG) or {}).get("replace", {})
+        # Upstream moves pages. Name every page that is gone, not only the first.
+        missing = [p for vol in plan["volumes"] for sn in vol["steps"] for p in steps[sn]["pages"]
+                   if not (DOCS / replace.get(p, p)).exists()]
+        if missing:
+            sys.exit("volumes.yml names pages that are not in the docs. Update their paths:\n  "
+                     + "\n  ".join(replace.get(p, p) for p in missing))
         for vol in plan["volumes"]:
             for sn in vol["steps"]:
                 self.step_pages[sn] = []

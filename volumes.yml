@@ -77,7 +77,8 @@ steps:
       - agents/config.md
       - agents/managed-agents.md
       - agents/models/index.md
-      - agents/models/google-gemini.md
+      - agents/models/google-gemini/index.md
+      - agents/models/google-gemini/deferred-schedule.md
       - agents/models/anthropic.md
       - agents/models/openai.md
       - agents/models/litellm.md

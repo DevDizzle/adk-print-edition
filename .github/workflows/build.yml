@@ -85,7 +85,11 @@ jobs:
         with:
           pandoc-version: "3.12"
       - uses: r-lib/actions/setup-tinytex@v2
-      - run: tlmgr install $(cat build/tex-packages.txt)
+      # The TinyTeX bundle can lag the package repository. Update tlmgr first,
+      # or tlmgr stops with "tlmgr itself needs to be updated".
+      - run: |
+          tlmgr update --self
+          tlmgr install $(cat build/tex-packages.txt)
 
       - name: Build the ${{ matrix.lang }} edition
         run: python build/build.py --lang ${{ matrix.lang }}
